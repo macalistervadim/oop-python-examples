@@ -1,4 +1,9 @@
-from typing import Protocol
+"""
+Данный пример демонстрирует работу таких принципов ООП как НАСЛЕДОВАНИЕ,
+МНОЖЕСТВЕННОЕ НАСЛЕДОВАНИЕ, ПРОТОКОЛЫ
+"""
+
+from typing import Protocol, Any
 
 
 class LongNameDict(dict[str, int]):
@@ -23,7 +28,16 @@ class ContactList(list["Contact"]):
 
 
 class AddressHolder:
-    def __init__(self, street: str, city: str, state: str, code: str) -> None:
+    def __init__(
+        self,
+        /,
+        street: str = "",
+        city: str = "",
+        state: str = "",
+        code: str = "",
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(**kwargs) # type: ignore [call-arg]
         self.street = street
         self.city = city
         self.state = state
@@ -33,17 +47,14 @@ class AddressHolder:
 class Contact:
     allContacts: ContactList = ContactList()
 
-    def __init__(self, name: str, email: str) -> None:
+    def __init__(self, /, name: str = "", email: str = "", **kwargs: Any) -> None:
+        super().__init__(**kwargs) # type: ignore [call-arg]
         self.name = name
         self.email = email
-        Contact.allContacts.append(self)
+        self.allContacts.append(self)
 
     def __repr__(self) -> str:
-        return (
-            f"{self.__class__.__name__}("
-            f"{self.name!r}, {self.email!r}"
-            f")"
-        )
+        return f"{self.__class__.__name__}(" f"{self.name!r}, {self.email!r}" f")"
 
 
 class Supplier(Contact):
@@ -55,9 +66,9 @@ class Supplier(Contact):
 
 
 class Friend(Contact):
-    def __init__(self, name: str, email: str, phone: str) -> None:
-        super().__init__(name, email)  # Вызываем родительский __init__ и передаем аргументы
-        self.phone = phone  # И только после вызова родительского __init__, определяем свои атрибуты класса
+    def __init__(self, /, phone: str = "", **kwargs: Any) -> None:
+        super().__init__(**kwargs)
+        self.phone = phone 
 
 
 class Emailable(Protocol):
