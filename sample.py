@@ -1,6 +1,7 @@
 import weakref
 import datetime
 from typing import Iterable
+import math
 
 
 class Sample:
@@ -95,7 +96,47 @@ the samples."""
     ) -> None:
         """Load and partition the raw data."""
         self.uploaded = datetime.datetime.now(tz=datetime.timezone.utc)
-        
+
+class Distance:
+    """Get distance."""
+
+    def distance(self, s1: Sample, s2: Sample) -> float:
+        pass
+
+
+class MD(Distance):
+    def distance(self, s1: Sample, s2: Sample) -> float:
+        return sum(
+            [
+                abs(s1.sepal_length - s2.sepal_length),
+                abs(s1.sepal_width - s2.sepal_width),
+                abs(s1.petal_length - s2.petal_length),
+                abs(s1.petal_width - s2.petal_width),
+            ]
+        )
+
+
+class CD(Distance):
+    def distance(self, s1: Sample, s2: Sample) -> float:
+        return sum(
+            [
+                abs(s1.sepal_length - s2.sepal_length),
+                abs(s1.sepal_width - s2.sepal_width),
+                abs(s1.petal_length - s2.petal_length),
+                abs(s1.petal_width - s2.petal_width),
+            ]
+        )
+
+
+class ED(Distance):
+    def distance(self, s1: Sample, s2: Sample) -> float:
+        return math.hypot(
+            s1.sepal_length - s2.sepal_length,
+            s1.sepal_width - s2.sepal_width,
+            s1.petal_length - s2.petal_length,
+            s1.petal_width - s2.petal_width,
+        )
+
 
 s = Sample(10, 5, 15, 2, "or")
 s.classification = "wrong"
