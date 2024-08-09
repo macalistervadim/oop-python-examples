@@ -95,7 +95,7 @@ class KnowSample(Sample):
         if self.purpose == Purporse.Testing:
             return self._classification
         else:
-            raise AttributeError( f"Training sample have no classification")
+            raise AttributeError(f"Training sample have no classification")
         
     @classification.setter
     def classification(self, value: str) -> None:
