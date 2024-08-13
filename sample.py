@@ -1,10 +1,13 @@
+import abc
 import weakref
 import datetime
-from typing import Iterable, Iterator
+from typing import Iterable, Iterator, TypedDict
 import math
 from pathlib import Path
 import csv
 import enum
+import random
+
 
 class BadSampleRow(ValueError):
     "Raise excepition for unvalid row."
@@ -165,6 +168,68 @@ class Hyperparameter:
         self.quality = pass_count / (pass_count+fail_count)
 
 
+class SampleDict(TypedDict):
+    sepal_length: float
+    sepal_width: float
+    petal_length: float
+    petal_width: float
+    species: str
+
+
+class SamplePartion(list[SampleDict], abc.ABC):
+    @overload
+    def __init__(self, *, training_subset: float = 0.80) -> None:
+        ...
+    
+    @overload
+    def __init__(
+        self,
+        iterable: Iterable[SampleDict] | None = None,
+        *,
+        training_subset: float = 0.80,
+    ) -> None:
+        self.training_subset = training_subset
+        if iterable:
+            super().__init__(iterable)
+        else:
+            super().__init__
+
+    @abc.abstractproperty
+    @property
+    def testing(self) -> list[TrainingKnowSample]:
+        ...
+
+    @abc.abstractproperty
+    @property
+    def training(self) -> list[TrainingKnowSample]:
+        ...
+
+
+class ShufflingSamplePartition(SamplePartion):
+    def __init__(
+            self,
+            iterable: Iterable[SampleDict] | None = None,
+            *,
+            training_subset: float = 0.80,
+    ) -> None:
+        super().__init__(iterable, training_subset=training_subset)
+        self.split: int | None = None
+
+    def shuffle(self) -> None:
+        if not self.split:
+            random.shuffle(self)
+            self.split = int(len(self) * self.training_subset)
+
+    @property
+    def training(self) -> list[TrainingKnowSample]:
+        self.shuffle()
+        return [TrainingKnowSample(**sd) for sd in self[: self.split]]
+    
+    @property
+    def testing(self) -> list[TestingKnowSample]:
+        self.shuffle
+        return [TestingKnowSample(**sd) for sd in self[self.split :]]
+
 class TrainingData:
     """A set of training data and testing data with methods to loas and test
 the samples."""
@@ -183,6 +248,7 @@ the samples."""
     ) -> None:
         """Load and partition the raw data."""
         self.uploaded = datetime.datetime.now(tz=datetime.timezone.utc)
+
 
 class Distance:
     """Get distance."""
