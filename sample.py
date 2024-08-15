@@ -1,62 +1,24 @@
 import abc
 import weakref
 import datetime
-from typing import Iterable, Iterator, TypedDict
+from typing import Iterable, Iterator, TypedDict, NamedTuple
 import math
 from pathlib import Path
 import csv
 import enum
 import random
+from dataclasses import dataclass
 
 
 class BadSampleRow(ValueError):
     "Raise excepition for unvalid row."
 
 
-class Sample:
-
-    def __init__(
-        self,
-        sepal_length: float,
-        sepal_width: float,
-        petal_length: float,
-        petal_width: float,
-        species: str | None = None,
-    ) -> None:
-        self.sepal_length = sepal_length
-        self.sepal_width = sepal_width
-        self.petal_width = petal_width
-        self.petal_length = petal_length
-        self.species = species
-        self.classification: str | None = None
-
-    def classify(self, classification: str) -> None:
-        self.classification = classification
-
-    def matches(self) -> bool:
-        return self.species == self.classification
-
-    def __repr__(self) -> str:
-        if self.species is None:
-            know_unknown = "UnknownSample"
-        else:
-            know_unknown = "KnownSample"
-
-        if self.classification is None:
-            classification = ""
-        else:
-            classification = f"{self.classification}"
-
-        return (
-            f"{know_unknown}("
-            f"sepal_length={self.sepal_length}, "
-            f"sepal_width={self.sepal_width}, "
-            f"petal_length={self.petal_length}, "
-            f"petal_width={self.petal_width}, "
-            f"species={self.species!r}, "
-            f"classification={classification!r}"
-            f")"
-        )
+class Sample(NamedTuple):
+    sepal_length: float
+    sepal_width: float
+    petal_length: float
+    petal_width: float
 
 
 class Purporse(enum.IntEnum):
@@ -65,49 +27,28 @@ class Purporse(enum.IntEnum):
     Training = 2
 
 
-class KnowSample(Sample):
-    def __init__(
-        self,
-        sepal_length: float,
-        sepal_width: float,
-        petal_length: float,
-        petal_width: float,
-        purpose: int,
-        species: str,
-    ) -> None:
-        purpose_enum = Purporse(purpose)
-        if purpose_enum not in {Purporse.Training, Purporse.Testing}:
-            raise ValueError(
-                f"Invalid purpose: {purpose!r}: {purpose_enum}"
-            )
-        super().__init__(
-            sepal_length=sepal_length,
-            sepal_width=sepal_width,
-            petal_length=petal_length,
-            petal_width=petal_width,
-        )
-        self.purpose = purpose_enum
-        self.species = species
-        self._classification: str | None = None
+class KnowSample(NamedTuple):
+    sample: Sample
+    species: str
 
-    def matches(self) -> bool:
-        return self.species == self.classification
-    
-    @property
-    def classification(self) -> str | None:
-        if self.purpose == Purporse.Testing:
-            return self._classification
-        else:
-            raise AttributeError(f"Training sample have no classification")
-        
-    @classification.setter
-    def classification(self, value: str) -> None:
-        if self.purpose == Purporse.Testing:
-            self._classification = value
-        else:
-            raise AttributeError(
-                f"Training samples cannot be claffified"
-            )
+
+class TestingKnowSample:
+    def __init__(
+            self, sample: KnowSample, classification: str | None = None
+    ) -> None:
+        self.sample = sample
+        self.classification = classification
+
+    def __repr__(self) -> str:
+        return (
+            f"{self.__class__.__name__}(sample={self.sample!r},"
+            f"classification={self.classification!r})"
+        )
+
+
+class TrainingKnowSample(NamedTuple):
+    sample: KnowSample
+
 
 class SampleReader:
     """
@@ -138,34 +79,6 @@ class SampleReader:
                 except ValueError as ex:
                     raise BadSampleRow(f"Invalid {row!r}") from ex
                 yield sample
-
-
-class Hyperparameter:
-    """A hyperparameter value and the overall quality of the classification."""
-
-    def __init__(self, k: int, training: "TrainingData") -> None:
-        self.k = k
-        self.data: weakref.ReferenceType["TrainingData"] = weakref.ref(
-            training
-        )
-        self.quality: float
-
-    def test(self) -> None:
-        """Run the entire test suite."""
-
-        training_data: "TrainingData | None" = self.data()
-        if not training_data:
-            raise RuntimeError("Broken Weak Reference")
-        
-        pass_count, fail_count = 0, 0
-        for sample in training_data.testing:
-            sample.classification = self.classify(sample)
-            if sample.matches():
-                pass_count += 1
-            else:
-                fail_count += 1
-        
-        self.quality = pass_count / (pass_count+fail_count)
 
 
 class SampleDict(TypedDict):
@@ -230,25 +143,6 @@ class ShufflingSamplePartition(SamplePartion):
         self.shuffle
         return [TestingKnowSample(**sd) for sd in self[self.split :]]
 
-class TrainingData:
-    """A set of training data and testing data with methods to loas and test
-the samples."""
-
-    def __init__(self, name: str) -> None:
-        self.name = name
-        self.uploaded: datetime.datetime
-        self.tested: datetime.datetime
-        self.training: list[Sample] = []
-        self.testing: list[Sample] = []
-        self.tuning: list[Hyperparameter] = []
-
-    def load(
-            self,
-            raw_data_source: Iterable[dict[str, str]]
-    ) -> None:
-        """Load and partition the raw data."""
-        self.uploaded = datetime.datetime.now(tz=datetime.timezone.utc)
-
 
 class Distance:
     """Get distance."""
@@ -310,6 +204,33 @@ class ED(Distance):
         )
 
 
-s = Sample(10, 5, 15, 2, "or")
-s.classification = "wrong"
-print(s)
+class Hyperparameter:
+    """Конкретный набор параметров настройки с k и алгоритмом расстояния"""
+
+    k: int
+    algorithm: Distance
+    data: weakref.ReferenceType["TrainingData"]
+
+    def classify(self, sample: Sample) -> str:
+        """Алгоритм k-NN"""
+        ...
+
+
+class TrainingData:
+    """A set of training data and testing data with methods to loas and test
+the samples."""
+
+    def __init__(self, name: str) -> None:
+        self.name = name
+        self.uploaded: datetime.datetime
+        self.tested: datetime.datetime
+        self.training: list[Sample] = []
+        self.testing: list[Sample] = []
+        self.tuning: list[Hyperparameter] = []
+
+    def load(
+            self,
+            raw_data_source: Iterable[dict[str, str]]
+    ) -> None:
+        """Load and partition the raw data."""
+        self.uploaded = datetime.datetime.now(tz=datetime.timezone.utc)
